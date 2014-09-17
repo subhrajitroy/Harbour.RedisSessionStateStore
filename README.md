@@ -13,7 +13,8 @@ Installation
 Usage
 -----
 
-Configure your `web.config` to use the session state provider:
+Configure your `web.config` to use the session state provider with sentinel host
+and port information:
 
 ```xml
 <system.web>
@@ -22,7 +23,7 @@ Configure your `web.config` to use the session state provider:
       <clear />
       <add name="RedisSessionStateProvider" 
            type="Harbour.RedisSessionStateStore.RedisSessionStateStoreProvider" 
-           host="localhost:6379" clientType="pooled" />
+           host="localhost:26379,localhost:26380" clientType="sentinel" />
     </providers>
   </sessionState>
 </system.web>
