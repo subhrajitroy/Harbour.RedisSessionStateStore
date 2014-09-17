@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using ServiceStack;
 using ServiceStack.Redis;
 using ServiceStack.Text;
 

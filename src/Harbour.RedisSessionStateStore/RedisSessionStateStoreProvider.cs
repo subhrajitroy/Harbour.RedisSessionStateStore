@@ -144,10 +144,9 @@ namespace Harbour.RedisSessionStateStore
 
                 if (clientManagerStatic == null)
                 {
-                    var host = config["host"];
-                    var clientType = config["clientType"];
+                   
 
-                    clientManager = CreateClientManager(clientType, host);
+                    clientManager = CreateClientManager(config);
                     manageClientManagerLifetime = true;
                 }
                 else
@@ -160,11 +159,14 @@ namespace Harbour.RedisSessionStateStore
             base.Initialize(name, config);
         }
 
-        private IRedisClientsManager CreateClientManager(string clientType, string host)
+        private IRedisClientsManager CreateClientManager(NameValueCollection config)
         {
+            var host = config["host"];
+            var clientType = config["clientType"];
+
             if (String.IsNullOrWhiteSpace(host))
             {
-                host = "localhost:6379";
+               throw new Exception("Session state store host name is null or empty");
             }
 
             if (String.IsNullOrWhiteSpace(clientType))
@@ -176,10 +178,26 @@ namespace Harbour.RedisSessionStateStore
             {
                 return new PooledRedisClientManager(host);
             }
-            else
+            if (clientType.ToUpper() == "SENTINEL")
             {
-                return new BasicRedisClientManager(host);
+                return GetSentinelAwareClientManager(config);
             }
+            return new BasicRedisClientManager(host);
+        }
+
+        private static IRedisClientsManager GetSentinelAwareClientManager(NameValueCollection config)
+        {
+            var host = config["host"];
+            var master = config["master"];
+
+            if (String.IsNullOrEmpty(master))
+            {
+                throw new Exception("Redis sentinel master name is null or empty");
+            }
+
+            var sentinel = new RedisSentinel(new[] {host}, master);
+            var redisClientsManager = sentinel.Setup();
+            return redisClientsManager;
         }
 
         private IRedisClient GetClient()
@@ -258,11 +276,12 @@ namespace Harbour.RedisSessionStateStore
             var key = GetSessionIdKey(id);
             using (var client = GetClient())
             {
-                UseTransaction(client, transaction =>
+                IRedisTransaction transaction = client.CreateTransaction();
+                using (transaction)
                 {
-                    transaction.QueueCommand(c => c.ExpireEntryIn(key, TimeSpan.FromMinutes(sessionTimeoutMinutes)));
-                });
-            };
+                    transaction.QueueCommand(c => c.ExpireEntryIn(key, TimeSpan.FromMinutes                                                    (sessionTimeoutMinutes)));
+                }
+            }
         }
 
         public override void RemoveItem(HttpContext context, string id, object lockId, SessionStateStoreData item)

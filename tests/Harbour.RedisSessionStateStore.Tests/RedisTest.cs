@@ -18,7 +18,9 @@ namespace Harbour.RedisSessionStateStore.Tests
 
         protected RedisTest()
         {
-            this.ClientManager = new BasicRedisClientManager(this.Host);
+            var hosts = new List<String> {"localhost:26379"};
+            this.ClientManager = new RedisSentinel(hosts, "mymaster").Setup();
+//            this.ClientManager = new BasicRedisClientManager(this.Host);
             this.redis = this.GetRedisClient();
         }
 
@@ -34,5 +36,7 @@ namespace Harbour.RedisSessionStateStore.Tests
             this.redis.Dispose();
             this.ClientManager.Dispose();
         }
+
+        
     }
 }
