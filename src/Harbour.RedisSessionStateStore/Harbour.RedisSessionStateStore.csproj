@@ -63,6 +63,7 @@
     <Compile Include="RedisSessionStateStoreOptions.cs" />
     <Compile Include="RedisSessionStateStoreProvider.cs" />
     <Compile Include="RedisSessionState.cs" />
+    <Compile Include="RedisSessionStoreException.cs" />
     <Compile Include="RedisTransactionExtensions.cs" />
   </ItemGroup>
   <ItemGroup>

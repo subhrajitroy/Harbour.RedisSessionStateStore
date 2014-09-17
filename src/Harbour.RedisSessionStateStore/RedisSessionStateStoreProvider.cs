@@ -166,7 +166,7 @@ namespace Harbour.RedisSessionStateStore
 
             if (String.IsNullOrWhiteSpace(host))
             {
-               throw new Exception("Session state store host name is null or empty");
+                throw new RedisSessionStoreException("Session state store host name is null or empty");
             }
 
             if (String.IsNullOrWhiteSpace(clientType))
@@ -187,18 +187,29 @@ namespace Harbour.RedisSessionStateStore
 
         private static IRedisClientsManager GetSentinelAwareClientManager(NameValueCollection config)
         {
-            var host = config["host"];
             var master = config["master"];
 
             if (String.IsNullOrEmpty(master))
             {
-                throw new Exception("Redis sentinel master name is null or empty");
+                throw new RedisSessionStoreException("Redis sentinel master name is null or empty");
             }
 
-            var sentinel = new RedisSentinel(new[] {host}, master);
+            var hosts = ResolveSentinelHosts(config);
+            var sentinel = new RedisSentinel(hosts, master);
             var redisClientsManager = sentinel.Setup();
             return redisClientsManager;
         }
+
+        private static IEnumerable<string> ResolveSentinelHosts(NameValueCollection config)
+        {
+            var commaDelimitedSentinelHosts = config["host"];
+            if (String.IsNullOrEmpty(commaDelimitedSentinelHosts))
+            {
+                throw new RedisSessionStoreException("Redis sentinel hosts is null or empty");
+            }
+
+            return commaDelimitedSentinelHosts.Split(',');
+        } 
 
         private IRedisClient GetClient()
         {
