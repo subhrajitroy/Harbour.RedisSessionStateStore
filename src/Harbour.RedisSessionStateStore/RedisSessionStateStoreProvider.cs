@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Web.SessionState;
@@ -61,8 +62,6 @@ namespace Harbour.RedisSessionStateStore
         private static object locker = new object();
 
         private readonly Func<HttpContext, HttpStaticObjectsCollection> staticObjectsGetter;
-        private IRedisClientsManager clientManager;
-        private bool manageClientManagerLifetime;
         private string name;
 
         private int sessionTimeoutMinutes;
@@ -70,7 +69,7 @@ namespace Harbour.RedisSessionStateStore
         /// <summary>
         /// Gets the client manager for the provider.
         /// </summary>
-        public IRedisClientsManager ClientManager { get { return clientManager; } }
+        public IRedisClientsManager ClientManager { get { return clientManagerStatic; } }
 
         internal RedisSessionStateStoreProvider(Func<HttpContext, HttpStaticObjectsCollection> staticObjectsGetter)
         {
@@ -144,15 +143,7 @@ namespace Harbour.RedisSessionStateStore
 
                 if (clientManagerStatic == null)
                 {
-                   
-
-                    clientManager = CreateClientManager(config);
-                    manageClientManagerLifetime = true;
-                }
-                else
-                {
-                    clientManager = clientManagerStatic;
-                    manageClientManagerLifetime = false;
+                    clientManagerStatic = CreateClientManager(config);
                 }
             }
 
@@ -213,7 +204,7 @@ namespace Harbour.RedisSessionStateStore
 
         private IRedisClient GetClient()
         {
-            return clientManager.GetClient();
+            return clientManagerStatic.GetClient();
         }
         
         /// <summary>
@@ -459,6 +450,11 @@ namespace Harbour.RedisSessionStateStore
             });
         }
 
+        public override void Dispose()
+        {
+            //Doing Nothing as of now
+        }
+
         public override bool SetItemExpireCallback(SessionStateItemExpireCallback expireCallback)
         {
             // Redis < 2.8 doesn't easily support key expiry notifications.
@@ -469,12 +465,5 @@ namespace Harbour.RedisSessionStateStore
             return false;
         }
 
-        public override void Dispose()
-        {
-            if (manageClientManagerLifetime)
-            {
-                clientManager.Dispose();
-            }
-        }
     }
 }
