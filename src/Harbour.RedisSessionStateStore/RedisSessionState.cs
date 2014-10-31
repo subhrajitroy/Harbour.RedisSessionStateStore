@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Web.SessionState;
 using System.IO;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Bson;
 
 namespace Harbour.RedisSessionStateStore
 {
@@ -22,6 +24,27 @@ namespace Harbour.RedisSessionStateStore
             this.Items = new SessionStateItemCollection();
             this.Locked = false;
             this.Created = DateTime.UtcNow;
+        }
+
+        public byte[] ToBson()
+        {
+            var jsonSerializer = new JsonSerializer();
+            using (var ms = new MemoryStream())
+            using (var bson = new BsonWriter(ms))
+            {
+                jsonSerializer.Serialize(bson, this);
+                return ms.ToArray();
+            }
+        }
+
+        public static RedisSessionState FromBytes(byte[] bytes)
+        {
+            var jsonSerializer = new JsonSerializer();
+            using (var ms = new MemoryStream(bytes))
+            using (var bson = new BsonReader(ms))
+            {
+                return jsonSerializer.Deserialize<RedisSessionState>(bson);
+            }
         }
 
         public IDictionary<string, byte[]> ToMap()
@@ -45,6 +68,17 @@ namespace Harbour.RedisSessionStateStore
             }
 
             return map;
+        }
+
+        public static bool TryParse(byte[] raw, out RedisSessionState data)
+        {
+            if (raw == null)
+            {
+                data = null;
+                return false;
+            }
+            data = FromBytes(raw);
+            return true;
         }
 
         public static bool TryParse(IDictionary<string, byte[]> raw, out RedisSessionState data)

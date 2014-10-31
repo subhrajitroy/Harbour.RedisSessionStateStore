@@ -290,14 +290,7 @@ namespace Harbour.RedisSessionStateStore
         {
             var key = GetSessionIdKey(id);
             using (var client = GetClient())
-            using (var distributedLock = GetDistributedLock(client, key))
             {
-                if (distributedLock.LockState == DistributedLock.LOCK_NOT_ACQUIRED)
-                {
-                    options.OnDistributedLockNotAcquired(id);
-                    return;
-                }
-
                 var stateRaw = client.GetAllEntriesFromHashRaw(key);
 
                 UseTransaction(client, transaction =>
@@ -331,13 +324,7 @@ namespace Harbour.RedisSessionStateStore
 
             var key = GetSessionIdKey(id);
             using (var client = GetClient())
-            using (var distributedLock = GetDistributedLock(client, key))
             {
-                if (distributedLock.LockState == DistributedLock.LOCK_NOT_ACQUIRED)
-                {
-                    options.OnDistributedLockNotAcquired(id);
-                    return null;
-                }
 
                 var stateRaw = client.GetAllEntriesFromHashRaw(key);
 
@@ -423,22 +410,16 @@ namespace Harbour.RedisSessionStateStore
         private void UpdateSessionStateIfLocked(IRedisClient client, string id, int lockId, Action<RedisSessionState> stateAction)
         {
             var key = GetSessionIdKey(id);
-            using (var distributedLock = GetDistributedLock(client, key))
+            var stateRaw = client.GetAllEntriesFromHashRaw(key);
+            RedisSessionState state;
+            //check if you are the one who has taken the lock, if so then you can update it
+            // the state.LockId == lockId should tell you if you are the owner
+            if (RedisSessionState.TryParse(stateRaw, out state) && state.Locked && state.LockId == lockId)
             {
-                if (distributedLock.LockState == DistributedLock.LOCK_NOT_ACQUIRED)
-                {
-                    options.OnDistributedLockNotAcquired(id);
-                    return;
-                }
-
-                var stateRaw = client.GetAllEntriesFromHashRaw(key);
-                RedisSessionState state;
-                if (RedisSessionState.TryParse(stateRaw, out state) && state.Locked && state.LockId == lockId)
-                {
-                    stateAction(state);
-                    UpdateSessionState(client, key, state);
-                }
+                stateAction(state);
+                UpdateSessionState(client, key, state);
             }
+
         }
 
         private void UpdateSessionState(IRedisClient client, string key, RedisSessionState state)
